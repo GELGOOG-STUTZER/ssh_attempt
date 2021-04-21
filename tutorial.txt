@@ -1,0 +1,4 @@
+sudo apt-get install libssh-dev
+gcc send.c -lssh -o send
+https://habr.com/ru/post/122445/
+https://api.libssh.org/stable/libssh_tutor_guided_tour.html
