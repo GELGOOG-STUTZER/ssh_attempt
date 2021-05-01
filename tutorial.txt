@@ -1,4 +1,5 @@
-sudo apt-get install libssh-dev
-gcc send.c -lssh -o send
-https://habr.com/ru/post/122445/
+sudo apt-get install libssh-dev НАДО установить ssh клиент и ssh сервер
+gcc send.c -lssh -o send как эта штука компилится
+ip add через эту команду узнаем ip в локальной сети
+https://habr.com/ru/post/122445/ здесь смотрим как переносить ключи
 https://api.libssh.org/stable/libssh_tutor_guided_tour.html
