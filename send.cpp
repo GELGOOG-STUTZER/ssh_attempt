@@ -135,49 +135,100 @@ int authenticate_pubkey(ssh_session session) {
 	return 0;
 }
 
-int main() {
-	ssh_session my_ssh_session;
+int shell_session(ssh_session session) {
+	ssh_channel channel;
+  	int rc;
+  	channel = ssh_channel_new(session);
+  	if (channel == NULL)
+    		return SSH_ERROR;
+
+  	rc = ssh_channel_open_session(channel);
+  	if (rc != SSH_OK) {
+    		ssh_channel_free(channel);
+    		return rc;
+	}
+
+  	ssh_channel_close(channel);
+  	ssh_channel_send_eof(channel);
+  	ssh_channel_free(channel);
+  	return SSH_OK;
+}
+
+int interactive_shell_session(ssh_session session, ssh_channel channel) {
 	int rc;
-	std::string filepath = "meme_example2.mp4"; // может кидать в определенную директорию (например DATA/meme_example2.jpg)
+	char buffer[256];
+  	int nbytes, nwritten;
+  	while (ssh_channel_is_open(channel) && !ssh_channel_is_eof(channel)) {
+		struct timeval timeout;
+		ssh_channel in_channels[2], out_channels[2];
+		fd_set fds;
+		int maxfd;
+		timeout.tv_sec = 30;
+		timeout.tv_usec = 0;
+		in_channels[0] = channel;
+		in_channels[1] = NULL;
+		FD_ZERO(&fds);
+		FD_SET(0, &fds);
+		FD_SET(ssh_get_fd(session), &fds);
+		maxfd = ssh_get_fd(session) + 1;
+    		ssh_select(in_channels, out_channels, maxfd, &fds, &timeout);
+		if (out_channels[0] != NULL) {
+			nbytes = ssh_channel_read(channel, buffer, sizeof(buffer), 0);
+			if (nbytes < 0) return SSH_ERROR;
+			if (nbytes > 0) {
+				nwritten = write(1, buffer, nbytes);
+				if (nwritten != nbytes) return SSH_ERROR;
+			}
+		}
+		if (FD_ISSET(0, &fds)) {
+			nbytes = read(0, buffer, sizeof(buffer));
+			if (nbytes < 0) return SSH_ERROR;
+			if (nbytes > 0) {
+				nwritten = ssh_channel_write(channel, buffer, nbytes);
+				if (nbytes != nwritten) return SSH_ERROR;
+			}
+		}
+	}
+	return rc;
+}
 
+int main() {
+	int rc;
+	ssh_session my_ssh_session;
 	my_ssh_session = ssh_new();                                                 // создаем ssh сессию
-	if (my_ssh_session == NULL)                                                 // проверяем, что все нормально 
+        if (my_ssh_session == NULL)                                                 // проверяем, что все нормально 
 		exit(-1);                                                           //
-	
-	ssh_options_set(my_ssh_session, SSH_OPTIONS_HOST, "antonpc@192.168.1.171");             // устанавливаем опции (см. https://api.libssh.org/stable/group__libssh__session.html#ga7a801b85800baa3f4e16f5b47db0a73d)
-	// КАК ПИШЕТСЯ АДРЕС К КОТОРОМУ ПОДКЛЮЧАТЬСЯ (имя учетки на компе к которому подключаешься)@(айпишник) пример см.выше
-	rc = ssh_connect(my_ssh_session);
-	if (rc != SSH_OK) {
-		fprintf(stderr, "Error connecting to host: %s\n", ssh_get_error(my_ssh_session));
-		exit(-1);
-	}
+        ssh_options_set(my_ssh_session, SSH_OPTIONS_HOST, "antonpc@192.168.1.171");             // устанавливаем опции (см. https://api.libssh.org/stable/group__libssh__session.html#ga7a801b85800baa3f4e16f5b47db0a73d)
+        // КАК ПИШЕТСЯ АДРЕС К КОТОРОМУ ПОДКЛЮЧАТЬСЯ (имя учетки на компе к которому подключаешься)@(айпишник) пример см.выше
+        rc = ssh_connect(my_ssh_session);
+        if (rc != SSH_OK) {
+        	fprintf(stderr, "Error connecting to host: %s\n", ssh_get_error(my_ssh_session));
+                exit(-1);
+        }
 
-	rc = verify_knownhost(my_ssh_session);
-	if (rc != 0) {
-		fprintf(stderr, "Error verifying host\n");
-		ssh_disconnect(my_ssh_session);
-		ssh_free(my_ssh_session);
-		exit(-1);
-	}
-
-	rc = authenticate_pubkey(my_ssh_session);
-	if (rc != 0) {
-                fprintf(stderr, "Error during authentification\n");
+        rc = verify_knownhost(my_ssh_session);
+        if (rc != 0) {
+        	fprintf(stderr, "Error verifying host\n");
                 ssh_disconnect(my_ssh_session);
                 ssh_free(my_ssh_session);
                 exit(-1);
         }
 
-
-	
-	int transfer_status;
-
-	transfer_status = sftp_transfer(my_ssh_session, filepath); // здесь идет передача файла см. соответствующую функцию
-	if (transfer_status != 0) {
-                fprintf(stderr, "Error file transfer\n");
+        rc = authenticate_pubkey(my_ssh_session);
+        if (rc != 0) {
+        	fprintf(stderr, "Error during authentification\n");
+                ssh_disconnect(my_ssh_session);
+                ssh_free(my_ssh_session);
                 exit(-1);
         }
 
+	std::string filepath = "meme_example2.mp4";
+	int transfer_status;
+	transfer_status = sftp_transfer(my_ssh_session, filepath); // здесь идет передача файла см. соответствующую функцию
+	if (transfer_status != 0) {
+		fprintf(stderr, "Error file transfer\n");
+                exit(-1);
+        }
 	ssh_disconnect(my_ssh_session);
 	ssh_free(my_ssh_session);                                                   // закрываем ssh сессию (ОБЯЗАТЕЛЬНО)
 }
