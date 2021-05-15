@@ -135,62 +135,6 @@ int authenticate_pubkey(ssh_session session) {
 	return 0;
 }
 
-int shell_session(ssh_session session) {
-	ssh_channel channel;
-  	int rc;
-  	channel = ssh_channel_new(session);
-  	if (channel == NULL)
-    		return SSH_ERROR;
-
-  	rc = ssh_channel_open_session(channel);
-  	if (rc != SSH_OK) {
-    		ssh_channel_free(channel);
-    		return rc;
-	}
-
-  	ssh_channel_close(channel);
-  	ssh_channel_send_eof(channel);
-  	ssh_channel_free(channel);
-  	return SSH_OK;
-}
-
-int interactive_shell_session(ssh_session session, ssh_channel channel) {
-	int rc;
-	char buffer[256];
-  	int nbytes, nwritten;
-  	while (ssh_channel_is_open(channel) && !ssh_channel_is_eof(channel)) {
-		struct timeval timeout;
-		ssh_channel in_channels[2], out_channels[2];
-		fd_set fds;
-		int maxfd;
-		timeout.tv_sec = 30;
-		timeout.tv_usec = 0;
-		in_channels[0] = channel;
-		in_channels[1] = NULL;
-		FD_ZERO(&fds);
-		FD_SET(0, &fds);
-		FD_SET(ssh_get_fd(session), &fds);
-		maxfd = ssh_get_fd(session) + 1;
-    		ssh_select(in_channels, out_channels, maxfd, &fds, &timeout);
-		if (out_channels[0] != NULL) {
-			nbytes = ssh_channel_read(channel, buffer, sizeof(buffer), 0);
-			if (nbytes < 0) return SSH_ERROR;
-			if (nbytes > 0) {
-				nwritten = write(1, buffer, nbytes);
-				if (nwritten != nbytes) return SSH_ERROR;
-			}
-		}
-		if (FD_ISSET(0, &fds)) {
-			nbytes = read(0, buffer, sizeof(buffer));
-			if (nbytes < 0) return SSH_ERROR;
-			if (nbytes > 0) {
-				nwritten = ssh_channel_write(channel, buffer, nbytes);
-				if (nbytes != nwritten) return SSH_ERROR;
-			}
-		}
-	}
-	return rc;
-}
 
 int main() {
 	int rc;
