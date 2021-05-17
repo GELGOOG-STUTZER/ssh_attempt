@@ -142,7 +142,7 @@ int main() {
 	my_ssh_session = ssh_new();                                                 // создаем ssh сессию
         if (my_ssh_session == NULL)                                                 // проверяем, что все нормально 
 		exit(-1);                                                           //
-        ssh_options_set(my_ssh_session, SSH_OPTIONS_HOST, "antonpc@192.168.1.171");             // устанавливаем опции (см. https://api.libssh.org/stable/group__libssh__session.html#ga7a801b85800baa3f4e16f5b47db0a73d)
+        ssh_options_set(my_ssh_session, SSH_OPTIONS_HOST, "localhost");             // устанавливаем опции (см. https://api.libssh.org/stable/group__libssh__session.html#ga7a801b85800baa3f4e16f5b47db0a73d)
         // КАК ПИШЕТСЯ АДРЕС К КОТОРОМУ ПОДКЛЮЧАТЬСЯ (имя учетки на компе к которому подключаешься)@(айпишник) пример см.выше
         rc = ssh_connect(my_ssh_session);
         if (rc != SSH_OK) {
